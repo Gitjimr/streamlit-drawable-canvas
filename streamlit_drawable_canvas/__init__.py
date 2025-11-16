@@ -1,5 +1,8 @@
 import base64
 import io
+
+from io import BytesIO
+
 import os
 from dataclasses import dataclass
 from hashlib import md5
@@ -8,7 +11,7 @@ import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
 import streamlit.elements.lib.image_utils as st_image
-from streamlit.elements.lib.image_utils import ImageLayout
+
 from PIL import Image
 
 _RELEASE = True  # on packaging, pass this to True
@@ -46,8 +49,15 @@ def _data_url_to_image(data_url: str) -> Image:
     return Image.open(io.BytesIO(base64.b64decode(_data_url)))
 
 
+def _pil_to_data_url(img, format="PNG"):
+    buf = BytesIO()
+    img.save(buf, format=format)
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    return f"data:image/{format.lower()};base64,{b64}"
+
+
 def _resize_img(img: Image, new_height: int = 700, new_width: int = 700) -> Image:
-    """Resize the image to the provided resolution."""
+    #Resize the image to the provided resolution.
     h_ratio = new_height / img.height
     w_ratio = new_width / img.width
     img = img.resize((int(img.width * w_ratio), int(img.height * h_ratio)))
@@ -120,28 +130,21 @@ def st_canvas(
     # Resize background_image to canvas dimensions by default
     background_image_url = None
     if background_image:
+        # já existe no seu código:
         background_image = _resize_img(background_image, height, width)
     
-        # Create layout_config manually for new Streamlit versions
-        layout_config = ImageLayout(
-            width=width,
-            height=height,
-            channels="RGB"
-        )
+        # em vez de usar st_image.image_to_url(...)
+        background_image_url = _pil_to_data_url(background_image, format="PNG")
     
-        background_image_url = st_image.image_to_url(
-            background_image,
-            layout_config,
-            clamp=True,
-            output_format="PNG",
-            image_id=f"drawable-canvas-bg-{md5(background_image.tobytes()).hexdigest()}-{key}",
-        )
-        
         base_url_path: str = st._config.get_option("server.baseUrlPath").strip("/")
         if base_url_path:
             base_url_path = "/" + base_url_path
-        background_image_url = base_url_path + background_image_url
-
+    
+        # para data URL, você nem precisaria do base_url_path, mas se quiser manter:
+        # background_image_url = base_url_path + background_image_url
+        # na prática, eu deixaria só:
+        # background_image_url = background_image_url
+    
         background_color = ""
 
     # Clean initial drawing, override its background color
