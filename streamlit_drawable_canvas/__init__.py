@@ -41,25 +41,20 @@ def _data_url_to_image(data_url: str) -> Image.Image:
 
 
 def _resize_img(img: Image.Image, new_height: int = 700, new_width: int = 700) -> Image.Image:
-    """Redimensiona imagem mantendo proporção, para caber em height x width."""
     h_ratio = new_height / img.height
     w_ratio = new_width / img.width
     img = img.resize((int(img.width * w_ratio), int(img.height * h_ratio)))
     return img
 
-
 def _pil_to_rgba_array(img: Image.Image) -> list:
-    """Converte PIL.Image em array flatten RGBA (como na 0.8)."""
+    # igual à 0.8, mas garantindo ints
     return np.array(img.convert("RGBA")).flatten().astype(int).tolist()
 
-
 def _pil_to_data_url(img: Image.Image, format: str = "PNG") -> str:
-    """Converte PIL.Image em data URL (string base64)."""
     buf = BytesIO()
     img.save(buf, format=format)
     b64 = base64.b64encode(buf.getvalue()).decode("ascii")
     return f"data:image/{format.lower()};base64,{b64}"
-
 
 # -------------------------------------------------------
 # st_canvas compatível
@@ -80,56 +75,43 @@ def st_canvas(
     point_display_radius: int = 3,
     key=None,
 ) -> CanvasResult:
-    """
-    Versão inspirada na 0.8:
-      - aceita background_image como PIL.Image
-      - converte para array RGBA (img_bytes) + data URL
-      - retorna image_data como np.array (h, w, 4)
-    """
 
-    # -------------------------
-    # 1) Trata background_image
-    # -------------------------
-    background_image_url = None
-    img_bytes = None  # array RGBA flatten (estilo 0.8)
+    # --- 1) tratar background_image ---
+    background_image_array = None   # estilo 0.8
+    background_image_url = None     # para frontends que esperam URL/data URL
 
     if background_image is not None:
-        # se vier em bytes, abre como PIL
+        # se vier em bytes, garante que vira PIL
         if isinstance(background_image, bytes):
             background_image = Image.open(BytesIO(background_image))
 
         # redimensiona pro tamanho do canvas
         background_image = _resize_img(background_image, height, width)
 
-        # aqui entra o "array" que você quer manter
-        img_bytes = _pil_to_rgba_array(background_image)  # lista de ints RGBA
+        # A) array RGBA flatten (como na 0.8)
+        background_image_array = _pil_to_rgba_array(background_image)
 
-        # e também geramos uma data URL pra Streamlit/fabric.js moderno
+        # B) data URL (pra quem usa URL)
         background_image_url = _pil_to_data_url(background_image, format="PNG")
 
-        # se tiver imagem, o fundo em cor fica transparente
+        # se tem imagem, cor de fundo vira transparente
         background_color = ""
 
-    # -------------------------
-    # 2) initial_drawing
-    # -------------------------
+    # --- 2) initial_drawing ---
     initial_drawing = {"version": "4.4.0"} if initial_drawing is None else initial_drawing
     initial_drawing["background"] = background_color
 
-    # -------------------------
-    # 3) Chamada ao componente
-    # -------------------------
+    # --- 3) chamada do componente ---
     component_value = _component_func(
         fillColor=fill_color,
         strokeWidth=stroke_width,
         strokeColor=stroke_color,
         backgroundColor=background_color,
 
-        # compat antigo (0.8/0.9) -> URL
-        backgroundImageURL=background_image_url,
-
-        # compat novo (PR img_bytes) -> array RGBA
-        img_bytes=img_bytes,
+        # cobre todas as possibilidades:
+        backgroundImage=background_image_array,   # compat antigo 0.8
+        backgroundImageURL=background_image_url,  # compat forks recentes
+        img_bytes=background_image_array,         # alguns forks usam só isso
 
         realtimeUpdateStreamlit=update_streamlit and (drawing_mode != "polygon"),
         canvasHeight=height,
@@ -142,27 +124,26 @@ def st_canvas(
         default=None,
     )
 
-    # primeira execução: nada ainda
     if component_value is None:
-        return CanvasResult()
+        return CanvasResult()   # importante: instância, não a classe
 
-    # -------------------------
-    # 4) Resultado (estilo 0.8)
-    # -------------------------
-    # em versões novas, component_value["data"] costuma vir como data URL;
-    # se vier como lista flatten igual 0.8, tratamos também.
+    # --- 4) saída (manter estilo atual, se você já usa _data_url_to_image) ---
     data = component_value["data"]
 
     if isinstance(data, str) and data.startswith("data:image"):
-        # data URL -> PIL -> np.array
         img = _data_url_to_image(data)
         img_np = np.asarray(img)
     else:
-        # fallback "estilo 0.8": lista flatten e width/height vindo do componente
+        # fallback estilo 0.8
         w = component_value.get("width", width)
         h = component_value.get("height", height)
         arr = np.array(data, dtype=np.uint8)
         img_np = np.reshape(arr, (h, w, 4))
+
+    return CanvasResult(
+        image_data=img_np,
+        json_data=component_value.get("raw"),
+    )
 
     return CanvasResult(
         image_data=img_np,
