@@ -1,9 +1,9 @@
 import base64
 import io
 
- #*
-from io import BytesIO 
- #*
+#*
+from io import BytesIO
+#*
 
 import os
 from dataclasses import dataclass
@@ -12,8 +12,7 @@ from hashlib import md5
 import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
-import streamlit.elements.image as st_image
-#import streamlit.elements.lib.image_utils as st_image
+import streamlit.elements.lib.image_utils as st_image
 
 from PIL import Image
 
@@ -45,22 +44,19 @@ class CanvasResult:
     image_data: np.array = None
     json_data: dict = None
 
-
+#*
 def _data_url_to_image(data_url: str) -> Image:
     """Convert DataURL string to the image."""
     _, _data_url = data_url.split(";base64,")
     return Image.open(io.BytesIO(base64.b64decode(_data_url)))
 
- #*
+
 def _pil_to_data_url(img, format="PNG"):
     buf = BytesIO()
     img.save(buf, format=format)
     b64 = base64.b64encode(buf.getvalue()).decode("ascii")
     return f"data:image/{format.lower()};base64,{b64}"
-
-def _img_to_array(img: Image) -> np.array:
-    return np.array(img.convert("RGBA")).flatten().tolist()
- #*
+#*
 
 def _resize_img(img: Image, new_height: int = 700, new_width: int = 700) -> Image:
     #Resize the image to the provided resolution.
@@ -134,22 +130,27 @@ def st_canvas(
         load and then reinject into another canvas through the `initial_drawing` argument.
     """
     # Resize background_image to canvas dimensions by default
-    
     #*
-    background_image_arr = None
-    if background_image is not None:
-        # 1) garante que é PIL.Image
-        if isinstance(background_image, bytes):
-            background_image = Image.open(BytesIO(background_image))
-
-        # 2) redimensiona
+    background_image_url = None
+    if background_image:
+        # já existe no seu código:
         background_image = _resize_img(background_image, height, width)
-
-        # 3) CONVERTE PRA ARRAY RGBA (IGUAL 0.8)
-        background_image_arr = _img_to_array(background_image)
-
-        background_color = ""
     
+        # em vez de usar st_image.image_to_url(...)
+        background_image_url = _pil_to_data_url(background_image, format="PNG")
+    
+        base_url_path: str = st._config.get_option("server.baseUrlPath").strip("/")
+        if base_url_path:
+            base_url_path = "/" + base_url_path
+    
+        # para data URL, você nem precisaria do base_url_path, mas se quiser manter:
+        # background_image_url = base_url_path + background_image_url
+        # na prática, eu deixaria só:
+        # background_image_url = background_image_url
+    
+        background_color = ""
+     #*
+
     # Clean initial drawing, override its background color
     initial_drawing = (
         {"version": "4.4.0"} if initial_drawing is None else initial_drawing
@@ -161,7 +162,7 @@ def st_canvas(
         strokeWidth=stroke_width,
         strokeColor=stroke_color,
         backgroundColor=background_color,
-        backgroundImage=background_image_arr,  # <<<<<< LISTA, NÃO STRING
+        backgroundImageURL=background_image_url,
         realtimeUpdateStreamlit=update_streamlit and (drawing_mode != "polygon"),
         canvasHeight=height,
         canvasWidth=width,
@@ -173,10 +174,9 @@ def st_canvas(
         default=None,
     )
     if component_value is None:
-        return CanvasResult()
+        return CanvasResult
 
-    w = component_value["width"]
-    h = component_value["height"]
     return CanvasResult(
-        np.reshape(component_value["data"], (h, w, 4)), component_value["raw"],
+        np.asarray(_data_url_to_image(component_value["data"])),
+        component_value["raw"],
     )
