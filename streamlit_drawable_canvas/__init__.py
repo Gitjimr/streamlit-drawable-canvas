@@ -1,7 +1,9 @@
 import base64
 import io
 
-from io import BytesIO
+ #*
+from io import BytesIO 
+ #*
 
 import os
 from dataclasses import dataclass
@@ -48,13 +50,13 @@ def _data_url_to_image(data_url: str) -> Image:
     _, _data_url = data_url.split(";base64,")
     return Image.open(io.BytesIO(base64.b64decode(_data_url)))
 
-
+ #*
 def _pil_to_data_url(img, format="PNG"):
     buf = BytesIO()
     img.save(buf, format=format)
     b64 = base64.b64encode(buf.getvalue()).decode("ascii")
     return f"data:image/{format.lower()};base64,{b64}"
-
+ #*
 
 def _resize_img(img: Image, new_height: int = 700, new_width: int = 700) -> Image:
     #Resize the image to the provided resolution.
@@ -128,6 +130,8 @@ def st_canvas(
         load and then reinject into another canvas through the `initial_drawing` argument.
     """
     # Resize background_image to canvas dimensions by default
+    
+    #*
     background_image_url = None
     if background_image:
         # já existe no seu código:
@@ -146,7 +150,8 @@ def st_canvas(
         # background_image_url = background_image_url
     
         background_color = ""
-
+     #*
+    
     # Clean initial drawing, override its background color
     initial_drawing = (
         {"version": "4.4.0"} if initial_drawing is None else initial_drawing
