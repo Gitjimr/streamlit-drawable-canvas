@@ -122,23 +122,46 @@ const DrawableCanvas = ({ args }: ComponentProps) => {
    * Update background image
    */
   useEffect(() => {
-    if (backgroundImageURL) {
-      var bgImage = new Image();
-      bgImage.onload = function() {
-        backgroundCanvas.getContext().drawImage(bgImage, 0, 0);
-      };
-      const baseUrl = getStreamlitBaseUrl() ?? ""
-      bgImage.src = baseUrl + backgroundImageURL
+    if (!backgroundImageURL) {
+      return
     }
-  }, [
-    canvas,
-    backgroundCanvas,
-    canvasHeight,
-    canvasWidth,
-    backgroundColor,
-    backgroundImageURL,
-    saveState,
-  ])
+  
+    // Se o fabric ainda não ligou o StaticCanvas ao <canvas>, evita erro
+    const ctx = backgroundCanvas && (backgroundCanvas as any).getContext
+      ? backgroundCanvas.getContext()
+      : null
+  
+    if (!ctx) {
+      return
+    }
+  
+    const bgImage = new Image()
+  
+    bgImage.onload = function () {
+      // Garante que o canvas está no tamanho certo
+      backgroundCanvas.setWidth(canvasWidth)
+      backgroundCanvas.setHeight(canvasHeight)
+  
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+      ctx.drawImage(bgImage, 0, 0, canvasWidth, canvasHeight)
+    }
+  
+    let src = backgroundImageURL
+    const baseUrl = getStreamlitBaseUrl()
+  
+    // 1) Se for data URL, usa direto
+    if (src.startsWith("data:")) {
+      bgImage.src = src
+    }
+    // 2) Se for caminho relativo tipo "/media/...", prefixa com baseUrl se existir
+    else if (baseUrl && src.startsWith("/")) {
+      bgImage.src = baseUrl + src
+    }
+    // 3) Se já for absoluto ("http://", "https://"), ou outro relativo, usa como veio
+    else {
+      bgImage.src = src
+    }
+  }, [backgroundImageURL, backgroundCanvas, canvasWidth, canvasHeight])
 
   /**
    * If state changed from undo/redo/reset, update user-facing canvas
