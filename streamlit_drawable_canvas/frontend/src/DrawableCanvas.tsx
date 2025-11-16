@@ -36,6 +36,7 @@ export interface PythonArgs {
   strokeColor: string
   backgroundColor: string
   backgroundImageURL: string
+  backgroundImage: Uint8ClampedArray
   realtimeUpdateStreamlit: boolean
   canvasWidth: number
   canvasHeight: number
@@ -54,6 +55,7 @@ const DrawableCanvas = ({ args }: ComponentProps) => {
     canvasHeight,
     backgroundColor,
     backgroundImageURL,
+    backgroundImage,
     realtimeUpdateStreamlit,
     drawingMode,
     fillColor,
