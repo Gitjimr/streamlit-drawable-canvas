@@ -122,46 +122,57 @@ const DrawableCanvas = ({ args }: ComponentProps) => {
    * Update background image
    */
   useEffect(() => {
-    if (!backgroundImageURL) {
-      return
-    }
-  
-    // Se o fabric ainda não ligou o StaticCanvas ao <canvas>, evita erro
-    const ctx = backgroundCanvas && (backgroundCanvas as any).getContext
-      ? backgroundCanvas.getContext()
-      : null
-  
+    // Garante que o StaticCanvas já está ligado ao <canvas> real
+    const ctx =
+      backgroundCanvas &&
+      (backgroundCanvas as any).getContext &&
+      backgroundCanvas.getContext()
+
     if (!ctx) {
       return
     }
-  
-    const bgImage = new Image()
-  
-    bgImage.onload = function () {
-      // Garante que o canvas está no tamanho certo
-      backgroundCanvas.setWidth(canvasWidth)
-      backgroundCanvas.setHeight(canvasHeight)
-  
-      ctx.clearRect(0, 0, canvasWidth, canvasHeight)
-      ctx.drawImage(bgImage, 0, 0, canvasWidth, canvasHeight)
+
+    // 🥇 1) PRIORIDADE: backgroundImageURL (nova API)
+    if (backgroundImageURL) {
+      const img = new Image()
+
+      img.onload = function () {
+        backgroundCanvas.setWidth(canvasWidth)
+        backgroundCanvas.setHeight(canvasHeight)
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+        ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight)
+      }
+
+      let src = backgroundImageURL
+      const baseUrl = getStreamlitBaseUrl()
+
+      // Se for data URL, usa direto
+      if (src.startsWith("data:")) {
+        img.src = src
+      }
+      // Se for caminho tipo "/media/...", prefixa com baseUrl se existir
+      else if (baseUrl && src.startsWith("/")) {
+        img.src = baseUrl + src
+      }
+      // Se já for "http://..." ou "https://..." ou relativo simples
+      else {
+        img.src = src
+      }
+
+      return
     }
-  
-    let src = backgroundImageURL
-    const baseUrl = getStreamlitBaseUrl()
-  
-    // 1) Se for data URL, usa direto
-    if (src.startsWith("data:")) {
-      bgImage.src = src
+
+    // 🥈 2) FALLBACK: comportamento antigo com array de pixels
+    if (backgroundImage) {
+      const imageData = ctx.createImageData(canvasWidth, canvasHeight)
+
+      ;(imageData.data as Uint8ClampedArray).set(
+        backgroundImage as unknown as Uint8ClampedArray
+      )
+
+      ctx.putImageData(imageData, 0, 0)
     }
-    // 2) Se for caminho relativo tipo "/media/...", prefixa com baseUrl se existir
-    else if (baseUrl && src.startsWith("/")) {
-      bgImage.src = baseUrl + src
-    }
-    // 3) Se já for absoluto ("http://", "https://"), ou outro relativo, usa como veio
-    else {
-      bgImage.src = src
-    }
-  }, [backgroundImageURL, backgroundCanvas, canvasWidth, canvasHeight])
+  }, [backgroundImageURL, backgroundImage, backgroundCanvas, canvasWidth, canvasHeight])
 
   /**
    * If state changed from undo/redo/reset, update user-facing canvas
