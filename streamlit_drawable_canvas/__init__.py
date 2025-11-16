@@ -144,8 +144,3 @@ def st_canvas(
         image_data=img_np,
         json_data=component_value.get("raw"),
     )
-
-    return CanvasResult(
-        image_data=img_np,
-        json_data=component_value.get("raw"),
-    )
