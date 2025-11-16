@@ -136,22 +136,21 @@ def st_canvas(
     
     #*
     background_image_url = None
+
     if background_image is not None:
-        # 1) garante que é PIL.Image
+        # garante que é um PIL.Image
         if isinstance(background_image, bytes):
             background_image = Image.open(BytesIO(background_image))
-    
-        # 2) redimensiona
+
+        # redimensiona para o tamanho do canvas (mantendo sua função)
         background_image = _resize_img(background_image, height, width)
-    
-        # 3) converte pra DATA URL (base64)
-        buf = BytesIO()
-        background_image.save(buf, format="PNG")
-        img_bytes = buf.getvalue()
-        b64 = base64.b64encode(img_bytes).decode("ascii")
-        background_image_url = f"data:image/png;base64,{b64}"
-    
+
+        # converte para data URL usando bytes/base64
+        background_image_url = _pil_to_data_url(background_image, format="PNG")
+
+        # se tem imagem de fundo, background_color fica transparente
         background_color = ""
+     #*
     
     # Clean initial drawing, override its background color
     initial_drawing = (
@@ -164,8 +163,8 @@ def st_canvas(
         strokeWidth=stroke_width,
         strokeColor=stroke_color,
         backgroundColor=background_color,
-        backgroundImageURL=background_image_url,
-        #backgroundImage=background_image_url,
+        #backgroundImageURL=background_image_url,
+        backgroundImage=background_image_url,
         realtimeUpdateStreamlit=update_streamlit and (drawing_mode != "polygon"),
         canvasHeight=height,
         canvasWidth=width,
@@ -179,7 +178,10 @@ def st_canvas(
     if component_value is None:
         return CanvasResult
 
+    img = _data_url_to_image(component_value["data"])
+    img_np = np.asarray(img)
+
     return CanvasResult(
-        np.asarray(_data_url_to_image(component_value["data"])),
-        component_value["raw"],
+        image_data=img_np,
+        json_data=component_value["raw"],
     )
