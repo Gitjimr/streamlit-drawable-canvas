@@ -8,7 +8,7 @@ import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
 import streamlit.elements.lib.image_utils as st_image
-from streamlit.elements.lib.image_utils import compute_image_layout
+from streamlit.elements.lib.image_utils import ImageLayout
 from PIL import Image
 
 _RELEASE = True  # on packaging, pass this to True
@@ -122,18 +122,17 @@ def st_canvas(
     if background_image:
         background_image = _resize_img(background_image, height, width)
     
-        # Compute layout for the resized image (required by new Streamlit versions)
-        layout_config = compute_image_layout(
-            background_image,
+        # Create layout_config manually for new Streamlit versions
+        layout_config = ImageLayout(
             width=width,
             height=height,
+            channels="RGB"
         )
     
         background_image_url = st_image.image_to_url(
             background_image,
             layout_config,
             clamp=True,
-            channels="RGB",
             output_format="PNG",
             image_id=f"drawable-canvas-bg-{md5(background_image.tobytes()).hexdigest()}-{key}",
         )
