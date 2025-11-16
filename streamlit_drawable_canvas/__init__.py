@@ -137,19 +137,21 @@ def st_canvas(
     #*
     background_image_url = None
     if background_image is not None:
+        # 1) garante que é PIL.Image
+        if isinstance(background_image, bytes):
+            background_image = Image.open(BytesIO(background_image))
+    
+        # 2) redimensiona
         background_image = _resize_img(background_image, height, width)
     
-        # converter para bytes
+        # 3) converte pra DATA URL (base64)
         buf = BytesIO()
         background_image.save(buf, format="PNG")
         img_bytes = buf.getvalue()
-    
-        # converter para DATA URL
         b64 = base64.b64encode(img_bytes).decode("ascii")
         background_image_url = f"data:image/png;base64,{b64}"
     
         background_color = ""
-         #*
     
     # Clean initial drawing, override its background color
     initial_drawing = (
@@ -162,8 +164,8 @@ def st_canvas(
         strokeWidth=stroke_width,
         strokeColor=stroke_color,
         backgroundColor=background_color,
-        #backgroundImageURL=background_image_url,
-        backgroundImage=background_image_url,
+        backgroundImageURL=background_image_url,
+        #backgroundImage=background_image_url,
         realtimeUpdateStreamlit=update_streamlit and (drawing_mode != "polygon"),
         canvasHeight=height,
         canvasWidth=width,
