@@ -124,7 +124,7 @@ def st_canvas(
         # Reduce network traffic and cache when switch another configure, use streamlit in-mem filemanager to convert image to URL
         background_image_url = st_image.image_to_url(
             background_image,
-            width=width,
+            #width=width,
             clamp=True,
             channels="RGB",
             output_format="PNG",
