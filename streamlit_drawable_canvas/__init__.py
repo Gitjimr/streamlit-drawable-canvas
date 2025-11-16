@@ -136,25 +136,20 @@ def st_canvas(
     
     #*
     background_image_url = None
-    if background_image:
-        # já existe no seu código:
+    if background_image is not None:
         background_image = _resize_img(background_image, height, width)
     
-        # em vez de usar st_image.image_to_url(...)
-        #background_image_url = _pil_to_data_url(background_image, format="PNG")
-        background_image_url =_img_to_array(background_image)
+        # converter para bytes
+        buf = BytesIO()
+        background_image.save(buf, format="PNG")
+        img_bytes = buf.getvalue()
     
-        #base_url_path: str = st._config.get_option("server.baseUrlPath").strip("/")
-        #if base_url_path:
-        #    base_url_path = "/" + base_url_path
-    
-        # para data URL, você nem precisaria do base_url_path, mas se quiser manter:
-        # background_image_url = base_url_path + background_image_url
-        # na prática, eu deixaria só:
-        # background_image_url = background_image_url
+        # converter para DATA URL
+        b64 = base64.b64encode(img_bytes).decode("ascii")
+        background_image_url = f"data:image/png;base64,{b64}"
     
         background_color = ""
-     #*
+         #*
     
     # Clean initial drawing, override its background color
     initial_drawing = (
