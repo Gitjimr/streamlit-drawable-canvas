@@ -56,6 +56,9 @@ def _pil_to_data_url(img, format="PNG"):
     img.save(buf, format=format)
     b64 = base64.b64encode(buf.getvalue()).decode("ascii")
     return f"data:image/{format.lower()};base64,{b64}"
+
+def _img_to_array(img: Image) -> np.array:
+    return np.array(img.convert("RGBA")).flatten().tolist()
  #*
 
 def _resize_img(img: Image, new_height: int = 700, new_width: int = 700) -> Image:
@@ -138,7 +141,8 @@ def st_canvas(
         background_image = _resize_img(background_image, height, width)
     
         # em vez de usar st_image.image_to_url(...)
-        background_image_url = _pil_to_data_url(background_image, format="PNG")
+        #background_image_url = _pil_to_data_url(background_image, format="PNG")
+        background_image_url =_img_to_array(background_image)
     
         #base_url_path: str = st._config.get_option("server.baseUrlPath").strip("/")
         #if base_url_path:
