@@ -136,9 +136,9 @@ def st_canvas(
         # em vez de usar st_image.image_to_url(...)
         background_image_url = _pil_to_data_url(background_image, format="PNG")
     
-        base_url_path: str = st._config.get_option("server.baseUrlPath").strip("/")
-        if base_url_path:
-            base_url_path = "/" + base_url_path
+        #base_url_path: str = st._config.get_option("server.baseUrlPath").strip("/")
+        #if base_url_path:
+        #    base_url_path = "/" + base_url_path
     
         # para data URL, você nem precisaria do base_url_path, mas se quiser manter:
         # background_image_url = base_url_path + background_image_url
