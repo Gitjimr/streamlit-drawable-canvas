@@ -7,6 +7,7 @@ __pycache__/
 *$py.class
 
 # Distribution / packaging
+build/
 dist/
 eggs/
 .eggs/
@@ -51,6 +52,10 @@ node_modules/
 
 # Coverage directory used by tools like istanbul
 coverage/
+
+# Lockfiles
+yarn.lock
+package-lock.json
 
 ########################################################################
 # JetBrains

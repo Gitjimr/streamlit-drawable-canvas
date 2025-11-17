@@ -15,9 +15,9 @@ def readme() -> str:
 
 setuptools.setup(
     name="streamlit-drawable-canvas",
-    version="0.9.3",
+    version="0.9.0",
     author="Fanilo ANDRIANASOLO",
-    author_email="contact@andfanilo.com",
+    author_email="andfanilo@gmail.com",
     description="A Streamlit custom component for a free drawing canvas using Fabric.js.",
     long_description=readme(),
     long_description_content_type="text/markdown",

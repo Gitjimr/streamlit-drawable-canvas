@@ -13,20 +13,6 @@ import UpdateStreamlit from "./components/UpdateStreamlit"
 import { useCanvasState } from "./DrawableCanvasState"
 import { tools, FabricTool } from "./lib"
 
-function getStreamlitBaseUrl(): string | null {
-  const params = new URLSearchParams(window.location.search)
-  const baseUrl = params.get("streamlitUrl")
-  if (baseUrl == null) {
-    return null
-  }
-
-  try {
-    return new URL(baseUrl).origin
-  } catch {
-    return null
-  }
-}
-
 /**
  * Arguments Streamlit receives from the Python side
  */
@@ -35,14 +21,13 @@ export interface PythonArgs {
   strokeWidth: number
   strokeColor: string
   backgroundColor: string
-  backgroundImageURL: string
+  backgroundImage: Uint8ClampedArray
   realtimeUpdateStreamlit: boolean
   canvasWidth: number
   canvasHeight: number
   drawingMode: string
   initialDrawing: Object
   displayToolbar: boolean
-  displayRadius: number
 }
 
 /**
@@ -53,13 +38,12 @@ const DrawableCanvas = ({ args }: ComponentProps) => {
     canvasWidth,
     canvasHeight,
     backgroundColor,
-    backgroundImageURL,
+    backgroundImage,
     realtimeUpdateStreamlit,
     drawingMode,
     fillColor,
     strokeWidth,
     strokeColor,
-    displayRadius,
     initialDrawing,
     displayToolbar,
   }: PythonArgs = args
@@ -122,45 +106,21 @@ const DrawableCanvas = ({ args }: ComponentProps) => {
    * Update background image
    */
   useEffect(() => {
-    if (!backgroundImageURL) {
-      return
-    }
-
-    const bgImage = new Image()
-
-    bgImage.onload = function () {
-      const ctx = backgroundCanvas.getContext()
-      if (!ctx) {
-        return
-      }
-
-      // limpa o fundo antes de desenhar
-      const w = backgroundCanvas.getWidth()
-      const h = backgroundCanvas.getHeight()
-      ctx.clearRect(0, 0, w, h)
-
-      // desenha a imagem ajustada ao canvas
-      ctx.drawImage(bgImage, 0, 0, w, h)
-
-      // se a versão do fabric tiver renderAll, garante o redraw
-      // @ts-ignore (para versões onde StaticCanvas não tipa renderAll)
-      if (typeof (backgroundCanvas as any).renderAll === "function") {
-        ;(backgroundCanvas as any).renderAll()
-      }
-    }
-
-    // Se for data URL (caso do _pil_to_data_url), NÃO prefixar baseUrl
-    if (backgroundImageURL.startsWith("data:")) {
-      bgImage.src = backgroundImageURL
-    } else {
-      const baseUrl = getStreamlitBaseUrl() ?? ""
-      bgImage.src = baseUrl + backgroundImageURL
+    if (backgroundImage) {
+      const imageData = backgroundCanvas
+        .getContext()
+        .createImageData(canvasWidth, canvasHeight)
+      imageData.data.set(backgroundImage)
+      backgroundCanvas.getContext().putImageData(imageData, 0, 0)
     }
   }, [
+    canvas,
     backgroundCanvas,
-    backgroundImageURL,
-    canvasWidth,
     canvasHeight,
+    canvasWidth,
+    backgroundColor,
+    backgroundImage,
+    saveState,
   ])
 
   /**
@@ -183,7 +143,6 @@ const DrawableCanvas = ({ args }: ComponentProps) => {
       fillColor: fillColor,
       strokeWidth: strokeWidth,
       strokeColor: strokeColor,
-      displayRadius: displayRadius
     })
 
     canvas.on("mouse:up", (e: any) => {
@@ -207,7 +166,6 @@ const DrawableCanvas = ({ args }: ComponentProps) => {
     canvas,
     strokeWidth,
     strokeColor,
-    displayRadius,
     fillColor,
     drawingMode,
     initialDrawing,
