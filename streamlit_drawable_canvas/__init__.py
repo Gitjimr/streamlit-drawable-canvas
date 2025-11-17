@@ -170,7 +170,7 @@ def st_canvas(
         default=None,
     )
     if component_value is None:
-        return CanvasResult()
+        return CanvasResult
 
     return CanvasResult(
         np.asarray(_data_url_to_image(component_value["data"])),
