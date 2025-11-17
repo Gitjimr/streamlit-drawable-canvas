@@ -36,7 +36,6 @@ export interface PythonArgs {
   strokeColor: string
   backgroundColor: string
   backgroundImageURL: string
-  backgroundImage: Uint8ClampedArray
   realtimeUpdateStreamlit: boolean
   canvasWidth: number
   canvasHeight: number
@@ -55,7 +54,6 @@ const DrawableCanvas = ({ args }: ComponentProps) => {
     canvasHeight,
     backgroundColor,
     backgroundImageURL,
-    backgroundImage,
     realtimeUpdateStreamlit,
     drawingMode,
     fillColor,
@@ -124,57 +122,46 @@ const DrawableCanvas = ({ args }: ComponentProps) => {
    * Update background image
    */
   useEffect(() => {
-    // Garante que o StaticCanvas já está ligado ao <canvas> real
-    const ctx =
-      backgroundCanvas &&
-      (backgroundCanvas as any).getContext &&
-      backgroundCanvas.getContext()
-
-    if (!ctx) {
+    if (!backgroundImageURL) {
       return
     }
 
-    // 🥇 1) PRIORIDADE: backgroundImageURL (nova API)
-    if (backgroundImageURL) {
-      const img = new Image()
+    const bgImage = new Image()
 
-      img.onload = function () {
-        backgroundCanvas.setWidth(canvasWidth)
-        backgroundCanvas.setHeight(canvasHeight)
-        ctx.clearRect(0, 0, canvasWidth, canvasHeight)
-        ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight)
+    bgImage.onload = function () {
+      const ctx = backgroundCanvas.getContext()
+      if (!ctx) {
+        return
       }
 
-      let src = backgroundImageURL
-      const baseUrl = getStreamlitBaseUrl()
+      // limpa o fundo antes de desenhar
+      const w = backgroundCanvas.getWidth()
+      const h = backgroundCanvas.getHeight()
+      ctx.clearRect(0, 0, w, h)
 
-      // Se for data URL, usa direto
-      if (src.startsWith("data:")) {
-        img.src = src
-      }
-      // Se for caminho tipo "/media/...", prefixa com baseUrl se existir
-      else if (baseUrl && src.startsWith("/")) {
-        img.src = baseUrl + src
-      }
-      // Se já for "http://..." ou "https://..." ou relativo simples
-      else {
-        img.src = src
-      }
+      // desenha a imagem ajustada ao canvas
+      ctx.drawImage(bgImage, 0, 0, w, h)
 
-      return
+      // se a versão do fabric tiver renderAll, garante o redraw
+      // @ts-ignore (para versões onde StaticCanvas não tipa renderAll)
+      if (typeof (backgroundCanvas as any).renderAll === "function") {
+        ;(backgroundCanvas as any).renderAll()
+      }
     }
 
-    // 🥈 2) FALLBACK: comportamento antigo com array de pixels
-    if (backgroundImage) {
-      const imageData = ctx.createImageData(canvasWidth, canvasHeight)
-
-      ;(imageData.data as Uint8ClampedArray).set(
-        backgroundImage as unknown as Uint8ClampedArray
-      )
-
-      ctx.putImageData(imageData, 0, 0)
+    // Se for data URL (caso do _pil_to_data_url), NÃO prefixar baseUrl
+    if (backgroundImageURL.startsWith("data:")) {
+      bgImage.src = backgroundImageURL
+    } else {
+      const baseUrl = getStreamlitBaseUrl() ?? ""
+      bgImage.src = baseUrl + backgroundImageURL
     }
-  }, [backgroundImageURL, backgroundImage, backgroundCanvas, canvasWidth, canvasHeight])
+  }, [
+    backgroundCanvas,
+    backgroundImageURL,
+    canvasWidth,
+    canvasHeight,
+  ])
 
   /**
    * If state changed from undo/redo/reset, update user-facing canvas
