@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import numpy as np
 from PIL import Image
 import streamlit.components.v1 as components
+import streamlit as st  # ← NOVO: para usar session_state
 
 _RELEASE = True  # on packaging, pass this to True
 
@@ -34,16 +35,54 @@ class CanvasResult:
 
 
 def _resize_img(img: Image, new_height: int = 700, new_width: int = 700) -> Image:
-    """Resize the image to the provided resolution."""
+    """Resize the image to the provided resolution, preserving aspect ratio."""
+    # Usa o menor fator para não distorcer
     h_ratio = new_height / img.height
     w_ratio = new_width / img.width
-    img = img.resize((int(img.width * w_ratio), int(img.height * h_ratio)))
-    return img
+    ratio = min(h_ratio, w_ratio)
+    new_size = (int(img.width * ratio), int(img.height * ratio))
+    if new_size == img.size:
+        return img
+    return img.resize(new_size, Image.LANCZOS)
 
 
-def _img_to_array(img: Image) -> np.array:
-    """Return RGBA array of PIL image."""
+def _img_to_array(img: Image) -> list:
+    """Return RGBA array of PIL image flattened to a Python list."""
     return np.array(img.convert("RGBA")).flatten().tolist()
+
+
+def _prepare_background(
+    background_image: Image,
+    background_color: str,
+    height: int,
+    width: int,
+    key: str | None,
+):
+    """Prepare background data with simple caching in session_state.
+
+    - Se não tiver imagem: retorna (None, background_color)
+    - Se tiver: redimensiona/transforma em array só quando necessário
+    """
+    if background_image is None:
+        return None, background_color
+
+    # Usa uma chave estável para o cache
+    cache_key = f"_st_canvas_bg_{key or 'default'}"
+
+    cached = st.session_state.get(cache_key, None)
+    if cached is not None:
+        cached_size, cached_data = cached
+        # Se tamanho do canvas não mudou, reutiliza o array
+        if cached_size == (height, width):
+            # Quando há background_image, background_color deve ficar transparente
+            return cached_data, ""
+
+    # Se chegou aqui, precisa recalcular
+    resized = _resize_img(background_image, height, width)
+    bg_array = _img_to_array(resized)
+
+    st.session_state[cache_key] = ((height, width), bg_array)
+    return bg_array, ""
 
 
 def st_canvas(
@@ -106,12 +145,14 @@ def st_canvas(
         `json_data` stores the canvas/objects JSON representation which you can manipulate, store
         load and then reinject into another canvas through the `initial_drawing` argument.
     """
-    # Resize background_image to canvas dimensions by default
-    # Then override background_color
-    if background_image:
-        background_image = _resize_img(background_image, height, width)
-        background_image = _img_to_array(background_image)
-        background_color = ""
+    # Prepara background com cache
+    background_image_data, background_color = _prepare_background(
+        background_image=background_image,
+        background_color=background_color,
+        height=height,
+        width=width,
+        key=key,
+    )
 
     # Clean initial drawing, override its background color
     initial_drawing = {"version": "4.4.0"} if initial_drawing is None else initial_drawing
@@ -122,7 +163,7 @@ def st_canvas(
         strokeWidth=stroke_width,
         strokeColor=stroke_color,
         backgroundColor=background_color,
-        backgroundImage=background_image,
+        backgroundImage=background_image_data,
         realtimeUpdateStreamlit=update_streamlit and (drawing_mode != 'polygon'),
         canvasHeight=height,
         canvasWidth=width,
@@ -132,11 +173,16 @@ def st_canvas(
         key=key,
         default=None,
     )
+
     if component_value is None:
-        return CanvasResult
+        # Garante retorno consistente (instância de CanvasResult, não a classe)
+        return CanvasResult()
 
     w = component_value["width"]
     h = component_value["height"]
+    img = np.reshape(component_value["data"], (h, w, 4))
+
     return CanvasResult(
-        np.reshape(component_value["data"], (h, w, 4)), component_value["raw"],
+        image_data=img,
+        json_data=component_value["raw"],
     )
